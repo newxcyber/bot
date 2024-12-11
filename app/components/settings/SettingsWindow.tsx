@@ -11,13 +11,14 @@ import { useSettings } from '~/lib/hooks/useSettings';
 import FeaturesTab from './features/FeaturesTab';
 import DebugTab from './debug/DebugTab';
 import ConnectionsTab from './connections/ConnectionsTab';
+import FilterTab from './filters/FilterTab.client';
 
 interface SettingsProps {
   open: boolean;
   onClose: () => void;
 }
 
-type TabType = 'chat-history' | 'providers' | 'features' | 'debug' | 'connection';
+type TabType = 'chat-history' | 'providers' | 'features' | 'debug' | 'connection' | 'middlewares';
 
 // Providers that support base URL configuration
 export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
@@ -28,6 +29,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
     { id: 'chat-history', label: 'Chat History', icon: 'i-ph:book', component: <ChatHistoryTab /> },
     { id: 'providers', label: 'Providers', icon: 'i-ph:key', component: <ProvidersTab /> },
     { id: 'features', label: 'Features', icon: 'i-ph:star', component: <FeaturesTab /> },
+    { id: 'middlewares', label: 'Middlewares', icon: 'i-ph:lego', component: <FilterTab /> },
     { id: 'connection', label: 'Connection', icon: 'i-ph:link', component: <ConnectionsTab /> },
     ...(debug
       ? [
@@ -44,7 +46,14 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   return (
     <RadixDialog.Root open={open}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay asChild onClick={onClose}>
+        <RadixDialog.Overlay
+          asChild
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
+        >
           <motion.div
             className="bg-black/50 fixed inset-0 z-max backdrop-blur-sm"
             initial="closed"

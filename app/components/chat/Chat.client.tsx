@@ -3,7 +3,7 @@
  * Preventing TS checks with files presented in the video for a better presentation.
  */
 import { useStore } from '@nanostores/react';
-import type { Message } from 'ai';
+import { generateId, type Message } from 'ai';
 import { useChat } from 'ai/react';
 import { useAnimate } from 'framer-motion';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
@@ -18,6 +18,8 @@ import { createScopedLogger, renderLogger } from '~/utils/logger';
 import { BaseChat } from './BaseChat';
 import Cookies from 'js-cookie';
 import { debounce } from '~/utils/debounce';
+import { useFilters, type FilterRequestObject } from '~/lib/hooks/useFilters';
+import { getSystemPrompt } from '~/lib/common/prompts';
 import { useSettings } from '~/lib/hooks/useSettings';
 import type { ProviderInfo } from '~/types/model';
 
@@ -92,6 +94,7 @@ export const ChatImpl = memo(
     const [chatStarted, setChatStarted] = useState(initialMessages.length > 0);
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // Move here
     const [imageDataList, setImageDataList] = useState<string[]>([]); // Move here
+    const { executeFilterChain } = useFilters();
     const { activeProviders } = useSettings();
 
     const [model, setModel] = useState(() => {
@@ -109,7 +112,7 @@ export const ChatImpl = memo(
 
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
-    const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
+    const { messages, isLoading, input, handleInputChange, setInput, stop, append, setMessages, reload } = useChat({
       api: '/api/chat',
       body: {
         apiKeys,
@@ -208,16 +211,25 @@ export const ChatImpl = memo(
 
       runAnimation();
 
+      let userMessage: Message = {
+        id: generateId(),
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
+          },
+          ...imageDataList.map((imageData) => ({
+            type: 'image',
+            image: imageData,
+          })),
+        ] as any, // Type assertion to bypass compiler check
+      };
+
       if (fileModifications !== undefined) {
-        /**
-         * If we have file modifications we append a new user message manually since we have to prefix
-         * the user input with the file modifications and we don't want the new user input to appear
-         * in the prompt. Using `append` is almost the same as `handleSubmit` except that we have to
-         * manually reset the input and we'd have to manually pass in file attachments. However, those
-         * aren't relevant here.
-         */
-        append({
-          role: 'user',
+        //TODO: Add fileModifications DIFF
+        userMessage = {
+          ...userMessage,
           content: [
             {
               type: 'text',
@@ -228,27 +240,42 @@ export const ChatImpl = memo(
               image: imageData,
             })),
           ] as any, // Type assertion to bypass compiler check
-        });
+        };
+      }
 
+      const filterReqObject: FilterRequestObject = {
+        files: workbenchStore.files.get(),
+        messages: [...messages, userMessage],
+        systemPrompt: getSystemPrompt(),
+        inputs: {},
+      };
+      const resp = await executeFilterChain(filterReqObject);
+
+      if (resp && resp.response) {
+        setMessages([
+          ...messages,
+          {
+            role: 'assistant',
+            content: resp.response,
+            id: generateId(),
+          },
+        ]);
+        reload();
+      } else {
+        append(userMessage, {
+          body: {
+            apiKeys,
+            filterReqObject,
+          },
+        });
+      }
+
+      if (fileModifications !== undefined) {
         /**
          * After sending a new message we reset all modifications since the model
          * should now be aware of all the changes.
          */
         workbenchStore.resetAllFileModifications();
-      } else {
-        append({
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
-            },
-            ...imageDataList.map((imageData) => ({
-              type: 'image',
-              image: imageData,
-            })),
-          ] as any, // Type assertion to bypass compiler check
-        });
       }
 
       setInput('');

@@ -5,12 +5,14 @@ import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
 import { SettingsButton } from '~/components/ui/SettingsButton';
-import { db, deleteById, getAll, chatId, type ChatHistoryItem, useChatHistory } from '~/lib/persistence';
+import { deleteById, getAll, chatId, type ChatHistoryItem, useChatHistory } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
+import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
+import { ClientOnly } from 'remix-utils/client-only';
 
 const menuVariants = {
   closed: {
@@ -36,6 +38,7 @@ const menuVariants = {
 type DialogContent = { type: 'delete'; item: ChatHistoryItem } | null;
 
 export const Menu = () => {
+  const { db, isLoading: dbLoading } = useIndexedDB();
   const { duplicateCurrentChat, exportChat } = useChatHistory();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
@@ -55,7 +58,7 @@ export const Menu = () => {
         .then(setList)
         .catch((error) => toast.error(error.message));
     }
-  }, []);
+  }, [dbLoading]);
 
   const deleteItem = useCallback((event: React.UIEvent, item: ChatHistoryItem) => {
     event.preventDefault();
@@ -208,7 +211,7 @@ export const Menu = () => {
           <ThemeSwitch />
         </div>
       </div>
-      <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <ClientOnly>{() => <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />}</ClientOnly>
     </motion.div>
   );
 };

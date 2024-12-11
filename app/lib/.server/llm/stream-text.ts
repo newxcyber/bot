@@ -1,8 +1,9 @@
 import { convertToCoreMessages, streamText as _streamText } from 'ai';
 import { getModel } from '~/lib/.server/llm/model';
 import { MAX_TOKENS } from './constants';
-import { getSystemPrompt } from './prompts';
+import { getSystemPrompt } from '~/lib/common/prompts';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, getModelList, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
+import type { FilterRequestObject } from '~/lib/hooks/useFilters';
 import type { IProviderSetting } from '~/types/model';
 
 interface ToolResult<Name extends string, Args, Result> {
@@ -65,12 +66,13 @@ export async function streamText(props: {
   options?: StreamingOptions;
   apiKeys?: Record<string, string>;
   providerSettings?: Record<string, IProviderSetting>;
+  filterReqObject?: FilterRequestObject;
 }) {
-  const { messages, env, options, apiKeys, providerSettings } = props;
+  const { messages, env, options, apiKeys, providerSettings, filterReqObject } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   const MODEL_LIST = await getModelList(apiKeys || {}, providerSettings);
-  const processedMessages = messages.map((message) => {
+  const processedMessages = ((filterReqObject?.messages as Message[]) || messages).map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
 
@@ -92,7 +94,7 @@ export async function streamText(props: {
 
   return _streamText({
     model: getModel(currentProvider, currentModel, env, apiKeys, providerSettings) as any,
-    system: getSystemPrompt(),
+    system: filterReqObject?.systemPrompt || getSystemPrompt(),
     maxTokens: dynamicMaxTokens,
     messages: convertToCoreMessages(processedMessages as any),
     ...options,
