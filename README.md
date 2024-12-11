@@ -100,6 +100,11 @@ If you see usr/local/bin in the output then you're good to go.
 ```
 git clone https://github.com/stackblitz-labs/bolt.diy.git
 ```
+NOTE: If you don't have the pnpm command installed, you can install pnpm with
+
+```bash
+npm i pnpm --global
+```
 
 3. Rename .env.example to .env.local and add your LLM API keys. You will find this file on a Mac at "[your name]/bold.new-any-llm/.env.example". For Windows and Linux the path will be similar.
 
