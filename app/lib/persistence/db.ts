@@ -5,14 +5,17 @@ import type { ChatHistoryItem } from './useChatHistory';
 const logger = createScopedLogger('ChatHistory');
 
 // this is used at the top level and never rejects
-export async function openDatabase(): Promise<IDBDatabase | undefined> {
+export async function openDatabase(
+  databaseName: string = 'boltHistory',
+  version: number = 1,
+): Promise<IDBDatabase | undefined> {
   if (typeof indexedDB === 'undefined') {
     console.error('indexedDB is not available in this environment.');
     return undefined;
   }
 
   return new Promise((resolve) => {
-    const request = indexedDB.open('boltHistory', 1);
+    const request = indexedDB.open(databaseName, version);
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;

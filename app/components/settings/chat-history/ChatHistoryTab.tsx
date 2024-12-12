@@ -1,12 +1,14 @@
 import { useNavigate } from '@remix-run/react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { db, deleteById, getAll } from '~/lib/persistence';
+import { deleteById, getAll } from '~/lib/persistence';
 import { classNames } from '~/utils/classNames';
 import styles from '~/components/settings/Settings.module.scss';
+import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
 
 export default function ChatHistoryTab() {
   const navigate = useNavigate();
+  const { db } = useIndexedDB();
   const [isDeleting, setIsDeleting] = useState(false);
   const downloadAsJson = (data: any, filename: string) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
